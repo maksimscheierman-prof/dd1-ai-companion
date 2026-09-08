@@ -2,33 +2,36 @@
 
 This is a rough phase list. Each phase should stay small. Do not start the next phase until the current one has a clear yes/no result.
 
-## Prototype 0: Input feasibility
+## Prototype 0: Shared-keyboard feasibility — done, rejected as main path
 
-Local-player **switching** on the shared keyboard is **verified**:
+Local-player switching on the shared keyboard is **verified**:
 
 - `F2`–`F5` select Heroes 1–4
-- `F6` spawns extra configured heroes
-- `F7` removes extras
-- `F8` leaves split-screen; `F2`–`F5` still switch the selected hero
+- `F6` / `F7` spawn / remove extras
+- Synthetic scan-code `SendInput` is accepted by DD1
 
-Remaining question: can an **external** Python process send those same keys and move the selected hero?
+That path is **VERIFIED TECHNICALLY, REJECTED FOR MAIN CONTROL PATH**. `F3` steals active control from the human. Keep `python src/main.py test-player2` for diagnostics only.
 
-Immediate Prototype 0 success condition:
+## Prototype 0B: Independent virtual-controller feasibility
+
+Current work. Goal: control Hero 2 from a virtual Xbox/XInput pad while the human keeps Hero 1.
+
+Success criteria:
 
 - Dungeon Defenders is already running
-- Heroes 1 and 2 are already spawned
-- Run our Python command
-- The script selects Hero 2 with `F3`
-- The script waits briefly
-- It holds `W` for approximately one second
-- It releases `W`
-- No other actions are performed
+- Hero 1 is controlled normally by the human
+- Hero 2 is assigned to a separate controller slot
+- Our Python program exposes a virtual Xbox-compatible controller
+- The virtual controller moves Hero 2
+- Hero 1 remains controllable at the same time
+- The program does **not** switch heroes with `F2`–`F5`
+- The program does **not** need DD1's currently selected hero slot
 
-Do not launch the game, attach to its process, or use virtual controllers for this check.
+Do not launch the game, attach to its process, or send keyboard hero-select keys.
 
 ## Prototype 1: Basic scripted companion
 
-If Prototype 0 works, drive the extra character with a fixed script:
+If Prototype 0B works, drive the extra character with a fixed pad script:
 
 - move
 - stop
@@ -59,4 +62,4 @@ Only after the early prototypes are proven:
 - building logic
 - multiple companions
 - higher-level AI decision making
-- virtual gamepads, only if shared-keyboard control is not enough
+- replace ViGEm if it becomes unusable (HIDMaestro is the first fallback)

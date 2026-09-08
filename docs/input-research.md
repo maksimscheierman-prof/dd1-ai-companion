@@ -1,12 +1,12 @@
-# Input research (Prototype 0)
+# Input research
 
-Questions that must be answered before we pick an input library or write a controller backend. Do not treat anything marked **TO VERIFY** as a fact.
+Questions that must be answered before we commit to an architecture. Do not treat anything marked **TO VERIFY** as a fact.
 
 This project will only use an external input path. Process injection, memory reads, DLL hooks, game patches, and Steam/anti-cheat bypass are out of scope.
 
 ## Local multiplayer in DD1
 
-Manually verified on the Windows/Steam build (keyboard, no extra controllers):
+Manually verified on the Windows/Steam build:
 
 - DD1 supports multiple local heroes in one session. **VERIFIED**
 - Extra configured heroes are spawned with `F6`. **VERIFIED**
@@ -14,84 +14,83 @@ Manually verified on the Windows/Steam build (keyboard, no extra controllers):
 - Hero selection keys: `F2` = Hero 1, `F3` = Hero 2, `F4` = Hero 3, `F5` = Hero 4. **VERIFIED**
 - `F8` returns from split-screen to full-screen. **VERIFIED**
 - After `F8`, `F2`–`F5` still switch which local hero receives keyboard input. **VERIFIED**
+- Upper bound on local heroes in one session. **TO VERIFY** (at least 4 via `F2`–`F5`)
+
+## Keyboard `SendInput` prototype (Prototype 0)
+
+- Synthetic keyboard scan-code `SendInput` is accepted by DD1 (`F3` + `W`). **VERIFIED**
+- Player switching through `F2`–`F5` works from an external Python process. **VERIFIED**
+- After `F3`, further keyboard input goes to Hero 2. **VERIFIED**
+- Main keyboard-switching architecture for companions. **REJECTED**
+
+Reason: selecting Hero 2 with `F3` changes the actively controlled local hero. The human then loses Hero 1. That is technically successful and unusable for the real product.
+
+The keyboard command `python src/main.py test-player2` stays as a **diagnostic only**. Do not use it as the companion control path.
+
+Library used for that test: `pydirectinput-rgx` (scan-code `SendInput`). External process only.
+
+## Preferred architecture
+
+Human Player 1 stays on keyboard/mouse (or a physical pad).
+
+Companions should be additional local heroes, each on its own virtual Xbox / XInput controller.
+
+```text
+Python app  →  virtual Xbox 360 pad  →  DD1 local Player 2
+```
+
+No DLL injection, memory access, game hooks, packet manipulation, or DD1 file changes.
 
 Still open:
 
-- How many local characters can exist in one session (upper bound)? **TO VERIFY**
-- What input devices besides the shared keyboard does the Steam Windows build accept for extra local players (XInput gamepad, DirectInput, other)? **TO VERIFY**
+- Can DD1 bind a second local hero to a separate Xbox / XInput controller while Hero 1 stays on keyboard? **TO VERIFY** (Prototype 0B)
+- Does DD1 distinguish individual controller devices reliably? **TO VERIFY**
+- Does the game bind pads by XInput user index (0–3), connection order, or something else? **TO VERIFY**
+- Does a virtual Xbox 360 pad appear as a normal extra player? **TO VERIFY**
 
-## First implementation path: shared keyboard
+## Virtual controller options (Prototype 0B)
 
-Virtual gamepads are **not** required for Prototype 0.
+Evaluated September 2026. ViGEm was **not** assumed to be the default.
 
-The first implementation path is:
+### `vgamepad` + ViGEmBus — chosen for Prototype 0B
 
-1. The user already has Dungeon Defenders running with extra heroes spawned (`F6`).
-2. Our program sends `F3` (or `F2`/`F4`/`F5`) to select a local hero.
-3. Ordinary keyboard movement (`W`, later other keys) is sent to whichever hero is currently selected.
+- **What it is:** Python library (`vgamepad`) that creates a virtual Xbox 360 controller through the ViGEmBus kernel driver. Windows sees a real XInput device. Games do not need patches.
+- **Python:** first-class (`VX360Gamepad`, `press_button`, `left_joystick_float`, `reset`, `update`). Package last pushed mid-2026; latest PyPI release `0.1.0`.
+- **Driver:** ViGEmBus (Nefarius). Officially **retired / archived 2023-11-02** after a trademark conflict. Final signed installer is **1.22.0**. Still widely used (DS4Windows, Sunshine fallback). Driver itself is unmaintained; it still works on current Windows 10/11.
+- **Windows:** 10/11 x64 (1.17+ is Win10/11 only). Admin install required once.
+- **Limitations:** no further ViGEm security/compat updates; `vgamepad` has no public `disconnect()` (removal happens when the pad object is destroyed); XInput is limited to four slots; a global ViGEm bus is created at `import vgamepad`.
+- **Why chosen anyway:** it is the only **simple, documented Python → Xbox/XInput** path. Newer stacks are C#/C++ first.
 
-Implication: this prototype cannot drive two heroes at the same time from one keyboard. It can only prove that an external process can select Hero 2 and move that hero.
+### HIDMaestro / PadForge — fallback if ViGEm fails
 
-Whether synthetic `SendInput` key events are accepted the same way as a physical keyboard is **TO VERIFY** — that is the Prototype 0 input test.
+- Actively developed user-mode UMDF2 virtual pads. No ViGEm kernel driver.
+- API is a .NET SDK (`HIDMaestro.Core.dll`), not a small PyPI package. Python would need `pythonnet` plus their driver bits.
+- Better long-term candidate; too much setup for this feasibility test.
 
-## Chosen library: `pydirectinput-rgx`
+### Other options (not used)
 
-Package: `pydirectinput-rgx` (imported as `pydirectinput`).
+- **VIIPER:** USB/IP virtual devices. Active, but a transport stack, not a tiny Python pad API.
+- **libvirtualhid / LizardByte Virtual HID Driver:** active; Windows extra profiles may need a paid license; ViGEm remains their free Xbox 360 fallback.
+- **WinUHid / DuoController:** C/UMDF SDKs, no small Python wrapper.
+- **vJoy / `pyvjoy`:** virtual DirectInput joystick, not a native Xbox/XInput pad. Worse match for DD1 local Player 2.
 
-Why this one:
+### Steam Input
 
-- External user-mode process only. No injection, hooks, or memory access.
-- Sends keyboard events through Windows `SendInput` using **scan codes**, which older / DirectInput-style games (UE3 titles such as DD1) are more likely to accept than virtual-key or `keybd_event` helpers.
-- Does not pull in PyAutoGUI or screenshot/computer-vision extras.
-- Small API: `keyDown` / `keyUp` for `f3`, `w`, and the other keys we need.
-
-It is still just OS-level input. The focused window receives the keys. We do not attach to the DD1 process.
-
-Virtual gamepad libraries (ViGEm, vJoy, and similar) stay unused and remain a **fallback** only if shared-keyboard control is not enough later.
-
-## Controllers and device identity
-
-Not needed for the current keyboard path. Kept for a later fallback:
-
-- Can multiple local characters be controlled using separate Xbox / XInput controllers? **TO VERIFY**
-- Does DD1 distinguish individual controller devices reliably (gamepad A always maps to player 2, gamepad B to player 3, etc.)? **TO VERIFY**
-- If two pads are connected, can each pad move only its own character? **TO VERIFY**
-- Does the game bind pads by XInput user index (0–3), by connection order, or by some other rule? **TO VERIFY**
-- Can player 1 stay on keyboard/mouse while another character is bound to a pad? **TO VERIFY**
-
-## Virtual gamepads (fallback only)
-
-Do not implement until the keyboard path is insufficient.
-
-- Can a virtual controller be exposed to the game as a separate player? **TO VERIFY**
-- Does DD1 treat a virtual Xbox-compatible pad the same as a physical one? **TO VERIFY**
-- After a virtual pad appears, does the game create or join a new local character without extra manual steps? **TO VERIFY**
-
-Candidate tools if we need this later:
-
-- ViGEmBus and a user-mode client such as `vgamepad` — virtual Xbox 360 / DualShock devices
-- vJoy / `pyvjoy` — virtual DirectInput joysticks
-
-## Steam Input
-
-Relevant mainly if we later use pads. For the current keyboard test:
-
-- Are there limitations if Steam Input is enabled? **TO VERIFY**
-- Does Steam Input merge or remap pads so DD1 no longer sees distinct devices? **TO VERIFY**
-- Do we need to disable or configure Steam Input for reliable per-player control? **TO VERIFY**
-- Is the result different for "Dungeon Defenders" specifically vs. Steam's global controller settings? **TO VERIFY**
+- Steam Input can intercept an Xbox pad and present a "Steam Virtual Gamepad", which may collapse or reorder players. **TO VERIFY**
+- For Prototype 0B, disable Steam Input for Dungeon Defenders (per-game: disable Steam Input) if the virtual pad does not show up as its own player. **TO VERIFY**
 
 ## Isolation from player 1
 
-- After `F3`, further keyboard input goes to Hero 2 rather than Hero 1. **VERIFIED** (physical keyboard)
-- Does our program's `SendInput` stream behave the same as a physical keyboard? **TO VERIFY**
-- Does the DD1 window need to be focused for keyboard input? **TO VERIFY** (almost certainly yes for `SendInput`)
-- Focusing the DD1 window, overlay, or Steam Big Picture may send our keys to the wrong target. **TO VERIFY**
+- Keyboard `F2`–`F5` steals the human's active hero. **VERIFIED** — rejected as the companion path
+- Independent virtual-controller control of Hero 2 while Hero 1 stays on keyboard/mouse. **TO VERIFY**
+- Whether DD1 must be focused for XInput pad input. **TO VERIFY** (often no for XInput)
 
-## Suggested next experiment
+## Suggested next experiment (Prototype 0B)
 
-1. Launch DD1 yourself. Spawn Hero 2 with `F6` if needed.
-2. From a separate terminal: `python src/main.py test-player2`
-3. Focus the DD1 window during the countdown.
-4. Confirm Hero 2 is selected (`F3`) and walks forward for about one second.
-5. Confirm Hero 1 does not move unless you had already selected Hero 1.
+1. Install ViGEmBus 1.22.0 (see README).
+2. `pip install -r requirements.txt`
+3. Launch DD1. Keep Hero 1 under your keyboard. Spawn Hero 2 (`F6`) if needed.
+4. Prefer Steam Input **off** for this game during the first test.
+5. `python src/main.py test-gamepad`
+6. During the wait, assign the new Xbox 360 controller to Hero 2. Do **not** press `F2`–`F5`.
+7. Watch whether Hero 2 walks forward (~1 s) and hops, while you can still move Hero 1.

@@ -1,3 +1,9 @@
-# Prototype 0 uses ordinary keyboard SendInput only.
-# Virtual-controller libraries stay out until that path is proven insufficient.
+# Keyboard diagnostic (Prototype 0, rejected as the companion path).
 pydirectinput-rgx==2.1.3
+
+# Prototype 0B: virtual Xbox 360 pad via ViGEmBus.
+# Install the ViGEmBus 1.22.0 driver first, then skip the bundled installer:
+#   cmd:        set VGAMEPAD_SKIP_VIGEMBUS_INSTALL=true
+#   PowerShell: $env:VGAMEPAD_SKIP_VIGEMBUS_INSTALL = "true"
+#   then:       pip install -r requirements.txt
+vgamepad==0.1.0
