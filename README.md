@@ -4,19 +4,24 @@ A small technical prototype for **Dungeon Defenders 1** on Windows/Steam. The lo
 
 Intended use is **local / private gameplay**. The program sits outside the game: no memory reads, no DLL injection, no game patches, and no Steam or anti-cheat bypass.
 
-## Architecture decision
+## Architecture
 
-**Preferred direction**
+Prototype 0 is **PASSED**. A virtual Xbox 360 / XInput pad can drive Hero 2 while the human keeps Hero 1.
 
 ```text
-Human Player 1  (keyboard / mouse, or a physical pad)
-        +
-Independent virtual Xbox/XInput companions  (Hero 2+)
+Human Player 1  →  keyboard / mouse (or a physical pad)
+Bot Player 2    →  virtual XInput controller #1
+Bot Player 3    →  virtual XInput controller #2
+Bot Player 4    →  virtual XInput controller #3
 ```
 
-Keyboard hero switching (`F2`–`F5`) **works** and is **rejected** as the companion path: it steals the human's active hero. That command remains only as a diagnostic.
+Pads stay connected for the life of the companion program. Do not create and destroy a controller per action.
 
-Current phase: **Prototype 0B** — can a virtual Xbox 360 controller move Hero 2 while the human still controls Hero 1?
+Keyboard `F2`–`F5` switching works and is **rejected**: it steals the human's hero.
+
+Current phase: **Prototype 1** — a persistent control API for up to three companions. No AI, vision, or combat logic yet.
+
+How DD1 maps three virtual pads to heroes 2/3/4 is still **unverified**. Treat player numbers as logical labels until the three-controller test is done.
 
 See `docs/plan.md` and `docs/input-research.md`.
 
@@ -39,16 +44,23 @@ pip install -r requirements.txt
 
 ## Manual tests
 
-Preferred (Prototype 0B):
+Preferred (Prototype 1, one companion):
+
+```text
+python src/main.py test-companion
+```
+
+Experimental (three pads at once):
+
+```text
+python src/main.py test-three-companions
+```
+
+Start DD1 yourself. Keep Hero 1 on keyboard. Spawn extra heroes with `F6` if needed. During the wait, assign each new Xbox controller to a companion hero. Do not press `F2`–`F5`.
+
+Older diagnostics:
 
 ```text
 python src/main.py test-gamepad
-```
-
-Start DD1 yourself, keep Hero 1 on keyboard, spawn Hero 2 (`F6`) if needed. During the wait, assign the new Xbox controller to Hero 2. Do not press `F2`–`F5`. If the pad is swallowed by Steam, disable Steam Input for Dungeon Defenders and retry.
-
-Diagnostic only (rejected path):
-
-```text
 python src/main.py test-player2
 ```

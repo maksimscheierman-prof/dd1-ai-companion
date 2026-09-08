@@ -48,6 +48,12 @@ class GamepadBackend(Protocol):
     def set_left_stick(self, x: float, y: float) -> None:
         """Set left stick in [-1.0, 1.0]. y=+1 is typically forward on X360."""
 
+    def set_left_trigger(self, value: float) -> None:
+        """Set LT in [0.0, 1.0]."""
+
+    def set_right_trigger(self, value: float) -> None:
+        """Set RT in [0.0, 1.0]."""
+
     def reset(self) -> None:
         """Neutral sticks and released buttons."""
 
@@ -106,6 +112,16 @@ class VGamepadBackend:
         pad.left_joystick_float(x_value_float=x, y_value_float=y)
         pad.update()
 
+    def set_left_trigger(self, value: float) -> None:
+        pad, _buttons = self._require_pad()
+        pad.left_trigger_float(value_float=value)
+        pad.update()
+
+    def set_right_trigger(self, value: float) -> None:
+        pad, _buttons = self._require_pad()
+        pad.right_trigger_float(value_float=value)
+        pad.update()
+
     def reset(self) -> None:
         pad, _buttons = self._require_pad()
         pad.reset()
@@ -143,6 +159,12 @@ class VirtualGamepad:
 
     def set_left_stick(self, x: float, y: float) -> None:
         self._backend.set_left_stick(x, y)
+
+    def set_left_trigger(self, value: float) -> None:
+        self._backend.set_left_trigger(value)
+
+    def set_right_trigger(self, value: float) -> None:
+        self._backend.set_right_trigger(value)
 
     def reset(self) -> None:
         if self._connected:

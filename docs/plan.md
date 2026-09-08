@@ -2,44 +2,41 @@
 
 This is a rough phase list. Each phase should stay small. Do not start the next phase until the current one has a clear yes/no result.
 
-## Prototype 0: Shared-keyboard feasibility — done, rejected as main path
+## Prototype 0: Input feasibility — PASSED
 
-Local-player switching on the shared keyboard is **verified**:
+Shared-keyboard switching works and is **rejected** as the companion path (`F3` steals Hero 1).
 
-- `F2`–`F5` select Heroes 1–4
-- `F6` / `F7` spawn / remove extras
-- Synthetic scan-code `SendInput` is accepted by DD1
+Virtual Xbox 360 / XInput control is the passing architecture:
 
-That path is **VERIFIED TECHNICALLY, REJECTED FOR MAIN CONTROL PATH**. `F3` steals active control from the human. Keep `python src/main.py test-player2` for diagnostics only.
+- ViGEmBus + `vgamepad` creates a virtual pad
+- DD1 treats it as an independent local player
+- Hero 2 can move and jump from that pad
+- Human Hero 1 stays independently controllable
+- No `F2`–`F5` switching is required
 
-## Prototype 0B: Independent virtual-controller feasibility
+Keep `test-player2` and `test-gamepad` as diagnostics only.
 
-Current work. Goal: control Hero 2 from a virtual Xbox/XInput pad while the human keeps Hero 1.
+## Prototype 1: Persistent companion control layer — current
 
-Success criteria:
+A small API that can drive up to three companions without exposing `vgamepad` to the rest of the program.
 
-- Dungeon Defenders is already running
-- Hero 1 is controlled normally by the human
-- Hero 2 is assigned to a separate controller slot
-- Our Python program exposes a virtual Xbox-compatible controller
-- The virtual controller moves Hero 2
-- Hero 1 remains controllable at the same time
-- The program does **not** switch heroes with `F2`–`F5`
-- The program does **not** need DD1's currently selected hero slot
+```text
+Human Player 1  →  keyboard / mouse
+Bot Player 2    →  virtual XInput #1  (stays connected)
+Bot Player 3    →  virtual XInput #2  (stays connected)
+Bot Player 4    →  virtual XInput #3  (stays connected)
+```
 
-Do not launch the game, attach to its process, or send keyboard hero-select keys.
+In scope:
 
-## Prototype 1: Basic scripted companion
+- `CompanionController` / `CompanionManager`
+- movement, stop, jump, button/trigger primitives
+- timed actions that always release
+- one-companion and three-companion manual tests
 
-If Prototype 0B works, drive the extra character with a fixed pad script:
+Out of scope: AI, vision, pathfinding, combat/building decisions, launching DD1, process hooks.
 
-- move
-- stop
-- jump
-- trigger a simple action
-- execute a predefined sequence
-
-Still no decision-making. The companion should do exactly what the script says.
+Controller creation order is **not** assumed to equal DD1 player slots. Validate that mapping with `test-three-companions` before treating player 2/3/4 as reliable hardware slots.
 
 ## Prototype 2: Game-state perception
 
@@ -60,6 +57,5 @@ Only after the early prototypes are proven:
 
 - combat logic
 - building logic
-- multiple companions
 - higher-level AI decision making
 - replace ViGEm if it becomes unusable (HIDMaestro is the first fallback)

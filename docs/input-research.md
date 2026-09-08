@@ -16,81 +16,64 @@ Manually verified on the Windows/Steam build:
 - After `F8`, `F2`–`F5` still switch which local hero receives keyboard input. **VERIFIED**
 - Upper bound on local heroes in one session. **TO VERIFY** (at least 4 via `F2`–`F5`)
 
-## Keyboard `SendInput` prototype (Prototype 0)
+## Keyboard `SendInput` (early Prototype 0)
 
 - Synthetic keyboard scan-code `SendInput` is accepted by DD1 (`F3` + `W`). **VERIFIED**
 - Player switching through `F2`–`F5` works from an external Python process. **VERIFIED**
 - After `F3`, further keyboard input goes to Hero 2. **VERIFIED**
 - Main keyboard-switching architecture for companions. **REJECTED**
 
-Reason: selecting Hero 2 with `F3` changes the actively controlled local hero. The human then loses Hero 1. That is technically successful and unusable for the real product.
+Reason: selecting Hero 2 with `F3` changes the actively controlled local hero. The human then loses Hero 1.
 
-The keyboard command `python src/main.py test-player2` stays as a **diagnostic only**. Do not use it as the companion control path.
+`python src/main.py test-player2` stays as a **diagnostic only**.
 
-Library used for that test: `pydirectinput-rgx` (scan-code `SendInput`). External process only.
+## Prototype 0B virtual controller — PASSED
 
-## Preferred architecture
+Manual test in Dungeon Defenders 1:
 
-Human Player 1 stays on keyboard/mouse (or a physical pad).
+- ViGEmBus + `vgamepad` creates a virtual Xbox 360 / XInput controller. **VERIFIED**
+- DD1 recognizes that pad as an independent local player. **VERIFIED**
+- Hero 2 can move through the virtual controller. **VERIFIED**
+- Hero 2 can jump through the virtual controller (`A`). **VERIFIED**
+- Human-controlled Hero 1 remains independently controllable at the same time. **VERIFIED**
 
-Companions should be additional local heroes, each on its own virtual Xbox / XInput controller.
+This is the companion-control architecture.
 
 ```text
-Python app  →  virtual Xbox 360 pad  →  DD1 local Player 2
+Human Player 1  →  keyboard / mouse or physical human input
+Bot Player 2    →  virtual XInput controller #1
+Bot Player 3    →  virtual XInput controller #2
+Bot Player 4    →  virtual XInput controller #3
 ```
 
-No DLL injection, memory access, game hooks, packet manipulation, or DD1 file changes.
+Pads stay connected for the lifetime of the companion program. Do not plug/unplug per action.
 
 Still open:
 
-- Can DD1 bind a second local hero to a separate Xbox / XInput controller while Hero 1 stays on keyboard? **TO VERIFY** (Prototype 0B)
-- Does DD1 distinguish individual controller devices reliably? **TO VERIFY**
-- Does the game bind pads by XInput user index (0–3), connection order, or something else? **TO VERIFY**
-- Does a virtual Xbox 360 pad appear as a normal extra player? **TO VERIFY**
+- Does DD1 keep three virtual pads mapped stably to Heroes 2/3/4? **TO VERIFY**
+- Is mapping by XInput user index, connection order, or something else? **TO VERIFY**
+- Do other face/shoulder/trigger buttons match the usual Xbox labels in DD1? **TO VERIFY** (`A` = jump is the only verified gameplay button)
 
-## Virtual controller options (Prototype 0B)
+## Chosen stack
 
-Evaluated September 2026. ViGEm was **not** assumed to be the default.
+- **Python:** `vgamepad` 0.1.0, hidden behind `src/input/gamepad.py`
+- **Driver:** ViGEmBus 1.22.0 (retired/archived, still works on Windows 10/11)
+- **Higher layers** (`src/control/`) must not import `vgamepad`
 
-### `vgamepad` + ViGEmBus — chosen for Prototype 0B
+Fallback if ViGEm becomes unusable: HIDMaestro (.NET / UMDF2, no first-class PyPI API).
 
-- **What it is:** Python library (`vgamepad`) that creates a virtual Xbox 360 controller through the ViGEmBus kernel driver. Windows sees a real XInput device. Games do not need patches.
-- **Python:** first-class (`VX360Gamepad`, `press_button`, `left_joystick_float`, `reset`, `update`). Package last pushed mid-2026; latest PyPI release `0.1.0`.
-- **Driver:** ViGEmBus (Nefarius). Officially **retired / archived 2023-11-02** after a trademark conflict. Final signed installer is **1.22.0**. Still widely used (DS4Windows, Sunshine fallback). Driver itself is unmaintained; it still works on current Windows 10/11.
-- **Windows:** 10/11 x64 (1.17+ is Win10/11 only). Admin install required once.
-- **Limitations:** no further ViGEm security/compat updates; `vgamepad` has no public `disconnect()` (removal happens when the pad object is destroyed); XInput is limited to four slots; a global ViGEm bus is created at `import vgamepad`.
-- **Why chosen anyway:** it is the only **simple, documented Python → Xbox/XInput** path. Newer stacks are C#/C++ first.
+## Steam Input
 
-### HIDMaestro / PadForge — fallback if ViGEm fails
-
-- Actively developed user-mode UMDF2 virtual pads. No ViGEm kernel driver.
-- API is a .NET SDK (`HIDMaestro.Core.dll`), not a small PyPI package. Python would need `pythonnet` plus their driver bits.
-- Better long-term candidate; too much setup for this feasibility test.
-
-### Other options (not used)
-
-- **VIIPER:** USB/IP virtual devices. Active, but a transport stack, not a tiny Python pad API.
-- **libvirtualhid / LizardByte Virtual HID Driver:** active; Windows extra profiles may need a paid license; ViGEm remains their free Xbox 360 fallback.
-- **WinUHid / DuoController:** C/UMDF SDKs, no small Python wrapper.
-- **vJoy / `pyvjoy`:** virtual DirectInput joystick, not a native Xbox/XInput pad. Worse match for DD1 local Player 2.
-
-### Steam Input
-
-- Steam Input can intercept an Xbox pad and present a "Steam Virtual Gamepad", which may collapse or reorder players. **TO VERIFY**
-- For Prototype 0B, disable Steam Input for Dungeon Defenders (per-game: disable Steam Input) if the virtual pad does not show up as its own player. **TO VERIFY**
+- Steam Input can intercept an Xbox pad and present a "Steam Virtual Gamepad". **TO VERIFY**
+- If extra pads collapse or swap heroes, disable Steam Input for Dungeon Defenders and retry.
 
 ## Isolation from player 1
 
 - Keyboard `F2`–`F5` steals the human's active hero. **VERIFIED** — rejected as the companion path
-- Independent virtual-controller control of Hero 2 while Hero 1 stays on keyboard/mouse. **TO VERIFY**
-- Whether DD1 must be focused for XInput pad input. **TO VERIFY** (often no for XInput)
+- Independent virtual-controller control of Hero 2 while Hero 1 stays on keyboard/mouse. **VERIFIED**
+- Same isolation with three virtual companions at once. **TO VERIFY**
 
-## Suggested next experiment (Prototype 0B)
+## Suggested next experiment
 
-1. Install ViGEmBus 1.22.0 (see README).
-2. `pip install -r requirements.txt`
-3. Launch DD1. Keep Hero 1 under your keyboard. Spawn Hero 2 (`F6`) if needed.
-4. Prefer Steam Input **off** for this game during the first test.
-5. `python src/main.py test-gamepad`
-6. During the wait, assign the new Xbox 360 controller to Hero 2. Do **not** press `F2`–`F5`.
-7. Watch whether Hero 2 walks forward (~1 s) and hops, while you can still move Hero 1.
+1. `python src/main.py test-companion` — persistent Bot 2 walk/jump; confirm Hero 1 still works after the sequence while the pad stays plugged in.
+2. `python src/main.py test-three-companions` — three pads, three different actions at once. Record which hero did what versus creation order.
