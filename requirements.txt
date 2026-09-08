@@ -1,2 +1,3 @@
-# Dependencies will be added after the Prototype 0 input method is chosen.
-# Do not add virtual-controller or input libraries until that approach is verified.
+# Prototype 0 uses ordinary keyboard SendInput only.
+# Virtual-controller libraries stay out until that path is proven insufficient.
+pydirectinput-rgx==2.1.3

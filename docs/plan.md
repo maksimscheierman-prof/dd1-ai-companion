@@ -4,24 +4,27 @@ This is a rough phase list. Each phase should stay small. Do not start the next 
 
 ## Prototype 0: Input feasibility
 
-Determine how Dungeon Defenders 1 handles multiple local players on Windows.
+Local-player **switching** on the shared keyboard is **verified**:
 
-Investigate whether additional local players are best controlled through:
+- `F2`–`F5` select Heroes 1–4
+- `F6` spawns extra configured heroes
+- `F7` removes extras
+- `F8` leaves split-screen; `F2`–`F5` still switch the selected hero
 
-- keyboard input
-- physical or virtual Xbox-compatible gamepads
-- another Windows input interface
+Remaining question: can an **external** Python process send those same keys and move the selected hero?
 
-**Goal:** control one additional local character independently.
+Immediate Prototype 0 success condition:
 
-**Minimum success case:**
+- Dungeon Defenders is already running
+- Heroes 1 and 2 are already spawned
+- Run our Python command
+- The script selects Hero 2 with `F3`
+- The script waits briefly
+- It holds `W` for approximately one second
+- It releases `W`
+- No other actions are performed
 
-- DD1 is running
-- a second local character exists
-- our program can send movement input to that character
-- inputs for player 1 are not affected
-
-This phase is research and a tiny external sender only. No combat logic, pathfinding, or vision.
+Do not launch the game, attach to its process, or use virtual controllers for this check.
 
 ## Prototype 1: Basic scripted companion
 
@@ -56,3 +59,4 @@ Only after the early prototypes are proven:
 - building logic
 - multiple companions
 - higher-level AI decision making
+- virtual gamepads, only if shared-keyboard control is not enough

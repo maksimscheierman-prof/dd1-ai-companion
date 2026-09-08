@@ -1,5 +1,5 @@
-"""Input backends for extra local players.
+"""External keyboard input for the currently selected local hero."""
 
-No controller or keyboard library is wired here yet. Add one only after
-docs/input-research.md has a verified approach.
-"""
+from input.keyboard import Keyboard, KeyboardBackend, PydirectinputBackend
+
+__all__ = ["Keyboard", "KeyboardBackend", "PydirectinputBackend"]
