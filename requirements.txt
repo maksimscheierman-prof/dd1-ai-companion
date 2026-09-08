@@ -1,0 +1,2 @@
+# Dependencies will be added after the Prototype 0 input method is chosen.
+# Do not add virtual-controller or input libraries until that approach is verified.
