@@ -17,8 +17,16 @@ from control.companion import (  # noqa: E402
 )
 from input.gamepad import VirtualGamepad  # noqa: E402
 from main import (  # noqa: E402
+    MOVEMENT_FORWARD_100,
+    MOVEMENT_FORWARD_25,
+    MOVEMENT_FORWARD_50,
+    MOVEMENT_FORWARD_SECONDS,
+    MOVEMENT_LOOK_SECONDS,
+    MOVEMENT_LOOK_X,
+    MOVEMENT_NEUTRAL_SECONDS,
     THREE_ACTION_SECONDS,
     run_companion_demo_sequence,
+    run_movement_characterization_sequence,
     run_three_companion_probe,
 )
 
@@ -38,6 +46,9 @@ class RecordingGamepadBackend:
 
     def set_left_stick(self, x: float, y: float) -> None:
         self.events.append(("stick", x, y))
+
+    def set_right_stick(self, x: float, y: float) -> None:
+        self.events.append(("rstick", x, y))
 
     def set_left_trigger(self, value: float) -> None:
         self.events.append(("lt", value))
@@ -111,7 +122,38 @@ class CompanionMovementTests(unittest.TestCase):
         bot._gamepad.connect()
         bot.move_forward()
         bot.reset()
-        self.assertEqual(events[-2], ("stick", 0.0, 1.0))
+        self.assertIn(("stick", 0.0, 1.0), events)
+        self.assertEqual(events[-3], ("stick", 0.0, 0.0))
+        self.assertEqual(events[-2], ("rstick", 0.0, 0.0))
+        self.assertEqual(events[-1], ("reset",))
+
+    def test_look_is_normalized(self) -> None:
+        events: list[tuple] = []
+        bot = CompanionController(2, VirtualGamepad(RecordingGamepadBackend(events)))
+        bot._gamepad.connect()
+        bot.set_look(3.0, -2.0)
+        self.assertEqual(events[-1], ("rstick", 1.0, -1.0))
+        bot.set_look(-0.25, 8.0)
+        self.assertEqual(events[-1], ("rstick", -0.25, 1.0))
+
+    def test_stop_look_centers_right_stick(self) -> None:
+        events: list[tuple] = []
+        bot = CompanionController(2, VirtualGamepad(RecordingGamepadBackend(events)))
+        bot._gamepad.connect()
+        bot.set_look(0.5, 0.0)
+        bot.stop_look()
+        self.assertEqual(events[-2], ("rstick", 0.5, 0.0))
+        self.assertEqual(events[-1], ("rstick", 0.0, 0.0))
+
+    def test_reset_neutralizes_both_sticks(self) -> None:
+        events: list[tuple] = []
+        bot = CompanionController(2, VirtualGamepad(RecordingGamepadBackend(events)))
+        bot._gamepad.connect()
+        bot.set_move(0.0, 1.0)
+        bot.set_look(-0.5, 0.25)
+        bot.reset()
+        self.assertIn(("stick", 0.0, 0.0), events)
+        self.assertIn(("rstick", 0.0, 0.0), events)
         self.assertEqual(events[-1], ("reset",))
 
 
@@ -254,6 +296,38 @@ class CompanionManagerTests(unittest.TestCase):
         self.assertEqual(logs[2][-1], ("release", "a"))
         self.assertNotIn(("disconnect",), logs[0])
         manager.shutdown()
+
+    def test_movement_characterization_sequence(self) -> None:
+        events: list[tuple] = []
+        logs: list[str] = []
+        sleeps: list[float] = []
+
+        def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+
+        bot = CompanionController(
+            2,
+            VirtualGamepad(RecordingGamepadBackend(events)),
+            sleep=sleep,
+        )
+        bot._gamepad.connect()
+        run_movement_characterization_sequence(bot, sleep=sleep, log=logs.append)
+
+        self.assertIn(("stick", 0.0, MOVEMENT_FORWARD_25), events)
+        self.assertIn(("stick", 0.0, MOVEMENT_FORWARD_50), events)
+        self.assertIn(("stick", 0.0, MOVEMENT_FORWARD_100), events)
+        self.assertIn(("rstick", MOVEMENT_LOOK_X, 0.0), events)
+        self.assertIn(("rstick", 0.0, 0.0), events)
+        self.assertIn(("press", "a"), events)
+        self.assertIn(("release", "a"), events)
+        self.assertEqual(events[-1], ("reset",))
+        self.assertNotIn(("disconnect",), events)
+        self.assertGreaterEqual(sleeps.count(MOVEMENT_NEUTRAL_SECONDS), 4)
+        self.assertGreaterEqual(sleeps.count(MOVEMENT_FORWARD_SECONDS), 4)
+        self.assertIn(MOVEMENT_LOOK_SECONDS, sleeps)
+        self.assertTrue(any("25%" in line for line in logs))
+        self.assertTrue(any("right stick" in line for line in logs))
+        self.assertTrue(any("not an angle" in line for line in logs))
 
 
 if __name__ == "__main__":

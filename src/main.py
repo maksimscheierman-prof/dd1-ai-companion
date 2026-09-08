@@ -37,6 +37,15 @@ THREE_ASSIGN_SECONDS = 20
 THREE_ACTION_SECONDS = 1.0
 THREE_HOLD_SECONDS = 8
 
+MOVEMENT_ASSIGN_SECONDS = 12
+MOVEMENT_NEUTRAL_SECONDS = 1.0
+MOVEMENT_FORWARD_SECONDS = 2.0
+MOVEMENT_LOOK_SECONDS = 1.0
+MOVEMENT_LOOK_X = 0.5
+MOVEMENT_FORWARD_25 = 0.25
+MOVEMENT_FORWARD_50 = 0.5
+MOVEMENT_FORWARD_100 = 1.0
+
 
 def run_player2_move_sequence(
     keyboard: Keyboard,
@@ -100,6 +109,54 @@ def run_three_companion_probe(
         bot2.stop_movement()
         bot3.stop_movement()
         bot4.release_button("a")
+
+
+def run_movement_characterization_sequence(
+    bot,
+    sleep: Callable[[float], None] = time.sleep,
+    log: Callable[[str], None] = print,
+) -> None:
+    """Time-based stick steps for observation only. Not a navigation system."""
+    def hold_move(x: float, y: float, duration: float, label: str) -> None:
+        log(f"[movement] {label} ({duration:.1f}s)")
+        try:
+            bot.set_move(x, y)
+            sleep(duration)
+        finally:
+            bot.stop_movement()
+
+    def hold_look(x: float, y: float, duration: float, label: str) -> None:
+        log(f"[movement] {label} ({duration:.1f}s)")
+        try:
+            bot.set_look(x, y)
+            sleep(duration)
+        finally:
+            bot.stop_look()
+
+    def hold_neutral(duration: float, label: str) -> None:
+        log(f"[movement] {label} ({duration:.1f}s)")
+        bot.stop_movement()
+        bot.stop_look()
+        sleep(duration)
+
+    try:
+        hold_neutral(MOVEMENT_NEUTRAL_SECONDS, "left+right sticks neutral")
+        hold_move(0.0, MOVEMENT_FORWARD_25, MOVEMENT_FORWARD_SECONDS, "left stick forward 25%")
+        hold_neutral(MOVEMENT_NEUTRAL_SECONDS, "neutral")
+        hold_move(0.0, MOVEMENT_FORWARD_50, MOVEMENT_FORWARD_SECONDS, "left stick forward 50%")
+        hold_neutral(MOVEMENT_NEUTRAL_SECONDS, "neutral")
+        hold_move(0.0, MOVEMENT_FORWARD_100, MOVEMENT_FORWARD_SECONDS, "left stick forward 100%")
+        hold_neutral(MOVEMENT_NEUTRAL_SECONDS, "neutral")
+        hold_look(MOVEMENT_LOOK_X, 0.0, MOVEMENT_LOOK_SECONDS, "right stick X=50% (not an angle)")
+        log("[movement] right stick neutral")
+        bot.stop_look()
+        hold_move(0.0, MOVEMENT_FORWARD_100, MOVEMENT_FORWARD_SECONDS, "left stick forward 100%")
+        log("[movement] stop")
+        bot.stop_movement()
+        log("[movement] jump once")
+        bot.jump()
+    finally:
+        bot.reset()
 
 
 def _countdown(seconds: int, sleep: Callable[[float], None] = time.sleep) -> None:
@@ -171,9 +228,8 @@ def cmd_test_companion() -> None:
 
 
 def cmd_test_three_companions() -> None:
-    print("EXPERIMENTAL: three persistent companions (Bot 2, 3, 4).")
-    print("Creation order is not guaranteed to match DD1 player slots.")
-    print("Assign each new Xbox pad to the matching hero. Do not use F2-F5.")
+    print("Three persistent companions (Bot 2, 3, 4). Assignments were verified once;")
+    print("still assign each new Xbox pad to the matching hero. Do not use F2-F5.")
     print("Keep Hero 1 on keyboard/mouse. Spawn extras with F6 if needed.")
     print()
     try:
@@ -198,32 +254,56 @@ def cmd_test_three_companions() -> None:
     print("Done: all three controllers reset and disconnected.")
 
 
+def cmd_test_movement() -> None:
+    print("Movement characterization: one persistent Bot 2 pad.")
+    print("This is NOT navigation. Distances and turn angles are not measured here.")
+    print("Watch relative speed at 25% / 50% / 100% and what the right stick does.")
+    print("Record notes in docs/movement-characterization.md. Do not use F2-F5.")
+    print()
+    try:
+        with CompanionManager() as manager:
+            bot = manager.create_companion(2)
+            print("Bot 2 virtual controller is connected. Assign it to Hero 2 now.")
+            print(f"Waiting {MOVEMENT_ASSIGN_SECONDS} seconds...")
+            _countdown(MOVEMENT_ASSIGN_SECONDS)
+            print("Starting logged stick sequence.")
+            run_movement_characterization_sequence(bot)
+    except GamepadUnavailable as exc:
+        print(exc)
+        print()
+        print(INSTALL_HELP)
+        raise SystemExit(1) from exc
+    print("Done: Bot 2 controller reset and disconnected.")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="DD1 AI Companion - Prototype 1: persistent companion control",
+        description="DD1 AI Companion - Prototype 1: companion control + movement check",
     )
     parser.add_argument(
         "command",
         nargs="?",
         choices=[
+            "test-movement",
             "test-companion",
             "test-three-companions",
             "test-gamepad",
             "test-player2",
         ],
         help=(
-            "test-companion: one persistent Bot 2; "
-            "test-three-companions: experimental three pads; "
+            "test-movement: analog stick characterization; "
+            "test-companion / test-three-companions: control checks; "
             "test-gamepad / test-player2: older diagnostics"
         ),
     )
     args = parser.parse_args(argv)
 
-    print("DD1 AI Companion - Prototype 1: persistent companion control")
+    print("DD1 AI Companion - Prototype 1: companion control + movement check")
     if args.command is None:
         parser.print_help(sys.stderr)
         return 0
     commands = {
+        "test-movement": cmd_test_movement,
         "test-companion": cmd_test_companion,
         "test-three-companions": cmd_test_three_companions,
         "test-gamepad": cmd_test_gamepad,

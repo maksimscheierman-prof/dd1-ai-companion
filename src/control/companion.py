@@ -59,6 +59,13 @@ class CompanionController:
     def stop_movement(self) -> None:
         self.set_move(0.0, 0.0)
 
+    def set_look(self, x: float, y: float) -> None:
+        """Right stick. Values are normalized; duration is not degrees."""
+        self._gamepad.set_right_stick(_clamp(x, -1.0, 1.0), _clamp(y, -1.0, 1.0))
+
+    def stop_look(self) -> None:
+        self.set_look(0.0, 0.0)
+
     def move_forward(self, duration: float | None = None) -> None:
         self._hold_move(0.0, 1.0, duration)
 
@@ -127,7 +134,11 @@ class CompanionController:
         self.tap_button(SECONDARY_ATTACK_BUTTON, duration=duration)
 
     def reset(self) -> None:
-        self._gamepad.reset()
+        try:
+            self.stop_movement()
+            self.stop_look()
+        finally:
+            self._gamepad.reset()
 
     def close(self) -> None:
         try:

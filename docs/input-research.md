@@ -14,7 +14,7 @@ Manually verified on the Windows/Steam build:
 - Hero selection keys: `F2` = Hero 1, `F3` = Hero 2, `F4` = Hero 3, `F5` = Hero 4. **VERIFIED**
 - `F8` returns from split-screen to full-screen. **VERIFIED**
 - After `F8`, `F2`–`F5` still switch which local hero receives keyboard input. **VERIFIED**
-- Upper bound on local heroes in one session. **TO VERIFY** (at least 4 via `F2`–`F5`)
+- At least four local heroes (human + three virtual pads). **VERIFIED**
 
 ## Keyboard `SendInput` (early Prototype 0)
 
@@ -27,17 +27,16 @@ Reason: selecting Hero 2 with `F3` changes the actively controlled local hero. T
 
 `python src/main.py test-player2` stays as a **diagnostic only**.
 
-## Prototype 0B virtual controller — PASSED
-
-Manual test in Dungeon Defenders 1:
+## Virtual controllers — PASSED
 
 - ViGEmBus + `vgamepad` creates a virtual Xbox 360 / XInput controller. **VERIFIED**
 - DD1 recognizes that pad as an independent local player. **VERIFIED**
-- Hero 2 can move through the virtual controller. **VERIFIED**
-- Hero 2 can jump through the virtual controller (`A`). **VERIFIED**
-- Human-controlled Hero 1 remains independently controllable at the same time. **VERIFIED**
-
-This is the companion-control architecture.
+- Hero 2 can move and jump (`A`) from a virtual pad. **VERIFIED**
+- Human Hero 1 remains independently controllable at the same time. **VERIFIED**
+- Three virtual Xbox/XInput controllers can coexist. **VERIFIED**
+- Bot 2, Bot 3, and Bot 4 can receive independent input at the same time. **VERIFIED**
+- Those player assignments stayed correct during the three-pad test. **VERIFIED**
+- Multi-companion control architecture. **VERIFIED**
 
 ```text
 Human Player 1  →  keyboard / mouse or physical human input
@@ -46,13 +45,29 @@ Bot Player 3    →  virtual XInput controller #2
 Bot Player 4    →  virtual XInput controller #3
 ```
 
-Pads stay connected for the lifetime of the companion program. Do not plug/unplug per action.
+Pads stay connected for the lifetime of the companion program.
 
 Still open:
 
-- Does DD1 keep three virtual pads mapped stably to Heroes 2/3/4? **TO VERIFY**
-- Is mapping by XInput user index, connection order, or something else? **TO VERIFY**
-- Do other face/shoulder/trigger buttons match the usual Xbox labels in DD1? **TO VERIFY** (`A` = jump is the only verified gameplay button)
+- Long-session remapping (hours, unplug/replug, Steam restart). **TO VERIFY**
+- Face/shoulder/trigger gameplay labels besides `A` = jump. **TO VERIFY**
+- Analog stick speed curve, deadzone, and right-stick camera behavior. **TO VERIFY** (`test-movement`)
+
+## Movement limitation (read before `test-movement`)
+
+Holding a stick for N seconds is **not** a position. It is also **not** a heading in degrees.
+
+Distance and facing can change with:
+
+- hero movement speed / stats
+- equipment
+- buffs and debuffs
+- collisions
+- slopes
+- framerate or other game timing
+- stick deadzones
+
+The characterization command only logs commanded stick values and durations so a human can watch the result.
 
 ## Chosen stack
 
@@ -64,16 +79,17 @@ Fallback if ViGEm becomes unusable: HIDMaestro (.NET / UMDF2, no first-class PyP
 
 ## Steam Input
 
-- Steam Input can intercept an Xbox pad and present a "Steam Virtual Gamepad". **TO VERIFY**
-- If extra pads collapse or swap heroes, disable Steam Input for Dungeon Defenders and retry.
+- Steam Input can intercept an Xbox pad. **TO VERIFY** as a long-term risk
+- The successful three-pad test did not require changing this conclusion: extra pads worked as independent players in that session.
 
 ## Isolation from player 1
 
 - Keyboard `F2`–`F5` steals the human's active hero. **VERIFIED** — rejected as the companion path
 - Independent virtual-controller control of Hero 2 while Hero 1 stays on keyboard/mouse. **VERIFIED**
-- Same isolation with three virtual companions at once. **TO VERIFY**
+- Same isolation with three virtual companions at once. **VERIFIED**
 
 ## Suggested next experiment
 
-1. `python src/main.py test-companion` — persistent Bot 2 walk/jump; confirm Hero 1 still works after the sequence while the pad stays plugged in.
-2. `python src/main.py test-three-companions` — three pads, three different actions at once. Record which hero did what versus creation order.
+1. `python src/main.py test-movement` on a flat open spot.
+2. Watch 25% vs 50% vs 100% forward, then the 50% right-stick hold.
+3. Fill `docs/movement-characterization.md` with observations only.

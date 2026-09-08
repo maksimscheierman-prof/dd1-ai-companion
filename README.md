@@ -6,7 +6,7 @@ Intended use is **local / private gameplay**. The program sits outside the game:
 
 ## Architecture
 
-Prototype 0 is **PASSED**. A virtual Xbox 360 / XInput pad can drive Hero 2 while the human keeps Hero 1.
+Prototypes 0 and 1 are **PASSED**. Three virtual Xbox / XInput pads can drive Heroes 2–4 while the human keeps Hero 1.
 
 ```text
 Human Player 1  →  keyboard / mouse (or a physical pad)
@@ -15,15 +15,13 @@ Bot Player 3    →  virtual XInput controller #2
 Bot Player 4    →  virtual XInput controller #3
 ```
 
-Pads stay connected for the life of the companion program. Do not create and destroy a controller per action.
+Pads stay connected for the life of the companion program.
 
 Keyboard `F2`–`F5` switching works and is **rejected**: it steals the human's hero.
 
-Current phase: **Prototype 1** — a persistent control API for up to three companions. No AI, vision, or combat logic yet.
+Current phase: **movement characterization** (not navigation). Stick time is not a map coordinate and not a camera angle.
 
-How DD1 maps three virtual pads to heroes 2/3/4 is still **unverified**. Treat player numbers as logical labels until the three-controller test is done.
-
-See `docs/plan.md` and `docs/input-research.md`.
+See `docs/plan.md`, `docs/input-research.md`, and `docs/movement-characterization.md`.
 
 ## Install
 
@@ -44,19 +42,18 @@ pip install -r requirements.txt
 
 ## Manual tests
 
-Preferred (Prototype 1, one companion):
+Current (watch analog speeds, then write notes):
+
+```text
+python src/main.py test-movement
+```
+
+Already verified:
 
 ```text
 python src/main.py test-companion
-```
-
-Experimental (three pads at once):
-
-```text
 python src/main.py test-three-companions
 ```
-
-Start DD1 yourself. Keep Hero 1 on keyboard. Spawn extra heroes with `F6` if needed. During the wait, assign each new Xbox controller to a companion hero. Do not press `F2`–`F5`.
 
 Older diagnostics:
 

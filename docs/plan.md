@@ -16,27 +16,26 @@ Virtual Xbox 360 / XInput control is the passing architecture:
 
 Keep `test-player2` and `test-gamepad` as diagnostics only.
 
-## Prototype 1: Persistent companion control layer — current
+## Prototype 1: Persistent companion control — PASSED
 
-A small API that can drive up to three companions without exposing `vgamepad` to the rest of the program.
+Up to three companions, each on its own virtual XInput pad, staying connected until shutdown.
 
 ```text
 Human Player 1  →  keyboard / mouse
-Bot Player 2    →  virtual XInput #1  (stays connected)
-Bot Player 3    →  virtual XInput #2  (stays connected)
-Bot Player 4    →  virtual XInput #3  (stays connected)
+Bot Player 2    →  virtual XInput #1
+Bot Player 3    →  virtual XInput #2
+Bot Player 4    →  virtual XInput #3
 ```
 
-In scope:
+Manually verified: three pads coexist, receive independent input at the same time, keep their assignments, and leave Hero 1 under human control.
 
-- `CompanionController` / `CompanionManager`
-- movement, stop, jump, button/trigger primitives
-- timed actions that always release
-- one-companion and three-companion manual tests
+## Prototype 1b: Movement characterization — current
 
-Out of scope: AI, vision, pathfinding, combat/building decisions, launching DD1, process hooks.
+Small analog-stick experiment only. `python src/main.py test-movement`
 
-Controller creation order is **not** assumed to equal DD1 player slots. Validate that mapping with `test-three-companions` before treating player 2/3/4 as reliable hardware slots.
+Goal: see how 25% / 50% / 100% forward and a short right-stick hold look in-game.
+
+This is **not** navigation. Stick duration is not a distance or an angle. Record observations in `docs/movement-characterization.md`.
 
 ## Prototype 2: Game-state perception
 
@@ -46,6 +45,8 @@ Explore whether we can tell what is happening without reading game memory:
 - detect simple UI or game-state signals (menus, ready prompts, obvious HUD markers)
 
 No advanced computer vision in this phase. The goal is to find cheap, reliable signals.
+
+Dead-reckoning from stick time is not a substitute for perception. Even if movement looks smooth, later bots will still need some external state signal.
 
 ## Prototype 3: Navigation and map-specific scripts
 
