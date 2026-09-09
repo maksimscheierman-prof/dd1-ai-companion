@@ -2,7 +2,7 @@
 
 Questions that must be answered before we commit to an architecture. Do not treat anything marked **TO VERIFY** as a fact.
 
-This project will only use an external input path. Process injection, memory reads, DLL hooks, game patches, and Steam/anti-cheat bypass are out of scope.
+This project prefers official/local modding and external input. Process injection, memory reads, DLL hooks, game patches, packet manipulation, and anti-cheat bypass are out of scope unless later research shows no other state path exists.
 
 ## Local multiplayer in DD1
 
@@ -51,25 +51,16 @@ Still open:
 
 - Long-session remapping (hours, unplug/replug, Steam restart). **TO VERIFY**
 - Face/shoulder/trigger gameplay labels besides `A` = jump. **TO VERIFY**
-- Analog stick speed curve, deadzone, and right-stick camera behavior. **TO VERIFY** (`test-movement`)
 
-## Movement limitation (read before `test-movement`)
+## Movement
 
-Holding a stick for N seconds is **not** a position. It is also **not** a heading in degrees.
+Holding a stick for N seconds is **not** a position and **not** a heading in degrees.
 
-Distance and facing can change with:
+Manual `test-movement` observation: 25% / 50% / 100% forward did **not** look meaningfully useful as distinct speeds. Current planning default is **full stick + neutral** unless later evidence shows otherwise.
 
-- hero movement speed / stats
-- equipment
-- buffs and debuffs
-- collisions
-- slopes
-- framerate or other game timing
-- stick deadzones
+Distance can still change with hero stats, gear, buffs, collisions, slopes, framerate, and deadzones.
 
-The characterization command only logs commanded stick values and durations so a human can watch the result.
-
-## Chosen stack
+## Chosen control stack
 
 - **Python:** `vgamepad` 0.1.0, hidden behind `src/input/gamepad.py`
 - **Driver:** ViGEmBus 1.22.0 (retired/archived, still works on Windows 10/11)
@@ -80,7 +71,7 @@ Fallback if ViGEm becomes unusable: HIDMaestro (.NET / UMDF2, no first-class PyP
 ## Steam Input
 
 - Steam Input can intercept an Xbox pad. **TO VERIFY** as a long-term risk
-- The successful three-pad test did not require changing this conclusion: extra pads worked as independent players in that session.
+- The successful three-pad test: extra pads worked as independent players in that session.
 
 ## Isolation from player 1
 
@@ -88,8 +79,8 @@ Fallback if ViGEm becomes unusable: HIDMaestro (.NET / UMDF2, no first-class PyP
 - Independent virtual-controller control of Hero 2 while Hero 1 stays on keyboard/mouse. **VERIFIED**
 - Same isolation with three virtual companions at once. **VERIFIED**
 
-## Suggested next experiment
+## Perception (not an input path)
 
-1. `python src/main.py test-movement` on a flat open spot.
-2. Watch 25% vs 50% vs 100% forward, then the 50% right-stick hold.
-3. Fill `docs/movement-characterization.md` with observations only.
+Screen / split-screen vision is **not** the preferred next step. Player 1 should stay in normal full-screen play.
+
+Preferred if feasible: DDDK / UnrealScript telemetry into the Python process. See `docs/dddk-telemetry-research.md`. Prototype 2 vision work is **BLOCKED** on that research.

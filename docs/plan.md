@@ -2,17 +2,30 @@
 
 This is a rough phase list. Each phase should stay small. Do not start the next phase until the current one has a clear yes/no result.
 
+Runtime feature work is **paused**. Do not start screen capture, OpenCV, or a telemetry mod until the checklist below is done.
+
+## NEXT SESSION START HERE
+
+1. Install / locate the Dungeon Defenders Development Kit.
+2. Inspect `Development/Src`.
+3. Identify player / world-state classes.
+4. Determine whether a tiny telemetry mod can print P2–P4 positions.
+5. Only then decide between:
+   - DDDK telemetry (preferred if feasible)
+   - screen vision fallback
+   - other approaches
+
+Questions and constraints: `docs/dddk-telemetry-research.md`.
+
+Do **not** start with process-memory reading, DLL injection, hooks, packet manipulation, or anti-cheat bypass. Those are last-resort only if official/local modding cannot export state.
+
+---
+
 ## Prototype 0: Input feasibility — PASSED
 
 Shared-keyboard switching works and is **rejected** as the companion path (`F3` steals Hero 1).
 
-Virtual Xbox 360 / XInput control is the passing architecture:
-
-- ViGEmBus + `vgamepad` creates a virtual pad
-- DD1 treats it as an independent local player
-- Hero 2 can move and jump from that pad
-- Human Hero 1 stays independently controllable
-- No `F2`–`F5` switching is required
+Virtual Xbox 360 / XInput control is the passing architecture.
 
 Keep `test-player2` and `test-gamepad` as diagnostics only.
 
@@ -27,30 +40,33 @@ Bot Player 3    →  virtual XInput #2
 Bot Player 4    →  virtual XInput #3
 ```
 
-Manually verified: three pads coexist, receive independent input at the same time, keep their assignments, and leave Hero 1 under human control.
+Manually verified: three pads coexist, receive independent input at the same time, keep their assignments, and leave Hero 1 under human control. Basic movement and jump work.
 
-## Prototype 1b: Movement characterization — current
+## Prototype 1b: Movement characterization — DONE (qualitative)
 
-Small analog-stick experiment only. `python src/main.py test-movement`
+`python src/main.py test-movement`
 
-Goal: see how 25% / 50% / 100% forward and a short right-stick hold look in-game.
+Partial analog magnitudes (25% / 50% / 100%) did **not** look meaningfully different for movement speed. Planning default is **full stick + neutral** unless later evidence says otherwise.
 
-This is **not** navigation. Stick duration is not a distance or an angle. Record observations in `docs/movement-characterization.md`.
+Stick duration is still not a map coordinate or a camera angle. Notes: `docs/movement-characterization.md`.
 
-## Prototype 2: Game-state perception
+## Prototype 2: Perception — BLOCKED
 
-Explore whether we can tell what is happening without reading game memory:
+Blocked on **DDDK / UnrealScript telemetry feasibility**.
 
-- screenshots / screen capture
-- detect simple UI or game-state signals (menus, ready prompts, obvious HUD markers)
+Preferred: the game (or a small official-kit mod) exports state for Players 2–4 while the human stays in normal full-screen Player 1 play.
 
-No advanced computer vision in this phase. The goal is to find cheap, reliable signals.
+```text
+DD1  →  telemetry  →  Python bot  →  pads 2/3/4  →  DD1
+```
 
-Dead-reckoning from stick time is not a substitute for perception. Even if movement looks smooth, later bots will still need some external state signal.
+Screen capture / split-screen / camera-switching vision is a **fallback**, not the preferred first solution. Split-screen or cycling P2–P4 cameras would hurt the human experience.
+
+Do not implement OpenCV, OCR, or screenshot navigation until telemetry is ruled out or shown insufficient.
 
 ## Prototype 3: Navigation and map-specific scripts
 
-Use the input path and any cheap state signals to walk predefined routes on known maps. Scripts stay map-specific. No general pathfinding yet.
+Only after a state source exists (telemetry or, if needed, vision). Scripts stay map-specific. No general pathfinding yet.
 
 ## Later
 

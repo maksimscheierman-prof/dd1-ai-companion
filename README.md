@@ -4,9 +4,11 @@ A small technical prototype for **Dungeon Defenders 1** on Windows/Steam. The lo
 
 Intended use is **local / private gameplay**. The program sits outside the game: no memory reads, no DLL injection, no game patches, and no Steam or anti-cheat bypass.
 
-## Architecture
+Development is **paused** on runtime features. Next work is DDDK / UnrealScript telemetry research. See `docs/plan.md` (`NEXT SESSION START HERE`) and `docs/dddk-telemetry-research.md`.
 
-Prototypes 0 and 1 are **PASSED**. Three virtual Xbox / XInput pads can drive Heroes 2–4 while the human keeps Hero 1.
+## Verified architecture
+
+Prototypes 0 and 1 (control feasibility) are **PASSED**.
 
 ```text
 Human Player 1  →  keyboard / mouse (or a physical pad)
@@ -15,13 +17,38 @@ Bot Player 3    →  virtual XInput controller #2
 Bot Player 4    →  virtual XInput controller #3
 ```
 
-Pads stay connected for the life of the companion program.
+Manually verified in DD1:
 
-Keyboard `F2`–`F5` switching works and is **rejected**: it steals the human's hero.
+- Three virtual Xbox / XInput pads can exist at once (`vgamepad` + ViGEmBus).
+- DD1 treats them as independent local players.
+- Bots 2–4 can receive independent input at the same time.
+- Human Player 1 stays independently controllable.
+- Assignments stayed stable during the real three-controller test.
+- Basic movement and jump work.
+- Default movement assumption: **full stick + neutral**. Partial stick (25% / 50% / 100%) did not look useful for distinct speeds.
 
-Current phase: **movement characterization** (not navigation). Stick time is not a map coordinate and not a camera angle.
+Keyboard `F2`–`F5` switching **works** and is **rejected** as the primary path: it steals the human's active hero.
 
-See `docs/plan.md`, `docs/input-research.md`, and `docs/movement-characterization.md`.
+## Perception (blocked)
+
+Do **not** assume split-screen or camera-switching vision. That would hurt Player 1's full-screen play.
+
+Preferred next architecture, **if** the Development Kit can export state:
+
+```text
+Dungeon Defenders 1
+        |
+        | game-state / telemetry
+        v
+     Python bot
+   /      |      \
+Pad 2   Pad 3   Pad 4
+        |
+        v
+Dungeon Defenders 1
+```
+
+Prototype 2 screen vision is a **fallback**, not the first choice. It is **BLOCKED** until DDDK telemetry feasibility is checked.
 
 ## Install
 
@@ -40,24 +67,12 @@ $env:VGAMEPAD_SKIP_VIGEMBUS_INSTALL = "true"
 pip install -r requirements.txt
 ```
 
-## Manual tests
-
-Current (watch analog speeds, then write notes):
-
-```text
-python src/main.py test-movement
-```
-
-Already verified:
+## Manual tests (already used)
 
 ```text
 python src/main.py test-companion
 python src/main.py test-three-companions
+python src/main.py test-movement
 ```
 
-Older diagnostics:
-
-```text
-python src/main.py test-gamepad
-python src/main.py test-player2
-```
+Older diagnostics: `test-gamepad`, `test-player2` (keyboard switch; not the companion path).
